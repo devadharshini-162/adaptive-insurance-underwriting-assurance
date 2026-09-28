@@ -61,9 +61,9 @@
 - [x] Fix identified critical path bugs. *AC: Fixed USD-prefix extraction regression; extended risk vocab (negligible/minimal/critical); extended hazmat vocab (N/A, not applicable).*
 
 ## 12. Demo/report preparation
-- [ ] Write simplified developer README.md. *AC: Clear setup instructions to start servers.*
-- [ ] Archive code state for delivery. *AC: Code is clean and committed.*
-- [ ] Prepare localized architecture data flow diagram (Mermaid). *AC: Diagram accurately reflects built prototype.*
+- [x] Write simplified developer README.md. *AC: README.md covers prerequisites, backend/frontend setup, env vars, migrations, test commands, and limitations.*
+- [x] Archive code state for delivery. *AC: Initial git commit 671dc74 — 68 files, 7202 insertions, no secrets, no build artifacts, no uploads.*
+- [x] Prepare localized architecture data flow diagram (Mermaid). *AC: Diagram in walkthrough.md and README.md accurately reflects the implemented system.*
 
 ## OPTIONAL / AFTER CORE
 - [ ] CI/CD workflows and automated GitHub actions
