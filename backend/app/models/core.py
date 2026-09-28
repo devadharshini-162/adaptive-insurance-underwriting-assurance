@@ -10,7 +10,28 @@ class User(Base):
     password_hash = Column(String)
     name = Column(String)
     role = Column(String, default="customer") # customer or underwriter
-    submissions = relationship("Submission", back_populates="user")
+    phone = Column(String, nullable=True)
+    organization = Column(String, nullable=True)
+    job_title = Column(String, nullable=True)
+    insurance_company_id = Column(Integer, ForeignKey("insurance_companies.id"), nullable=True)
+    supported_product_ids = Column(JSON, nullable=True)
+    specialization = Column(String, nullable=True)
+    years_experience = Column(Integer, nullable=True)
+    availability_status = Column(String, nullable=True)
+    professional_description = Column(Text, nullable=True)
+    submissions = relationship("Submission", back_populates="user", foreign_keys="Submission.user_id")
+    insurance_company = relationship("InsuranceCompany", back_populates="underwriters")
+    assigned_submissions = relationship("Submission", back_populates="assigned_underwriter", foreign_keys="Submission.assigned_underwriter_id")
+
+class InsuranceCompany(Base):
+    __tablename__ = "insurance_companies"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    is_demo = Column(Boolean, default=True, nullable=False)
+
+    underwriters = relationship("User", back_populates="insurance_company")
+    submissions = relationship("Submission", back_populates="insurance_company", foreign_keys="Submission.insurance_company_id")
 
 class InsuranceProduct(Base):
     __tablename__ = "insurance_products"
@@ -52,11 +73,15 @@ class Submission(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
     product_id = Column(Integer, ForeignKey("insurance_products.id"))
+    insurance_company_id = Column(Integer, ForeignKey("insurance_companies.id"), nullable=True)
+    assigned_underwriter_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     status = Column(String, default="draft")
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    user = relationship("User", back_populates="submissions")
+    user = relationship("User", back_populates="submissions", foreign_keys=[user_id])
     product = relationship("InsuranceProduct", back_populates="submissions")
+    insurance_company = relationship("InsuranceCompany", back_populates="submissions", foreign_keys=[insurance_company_id])
+    assigned_underwriter = relationship("User", back_populates="assigned_submissions", foreign_keys=[assigned_underwriter_id])
     answers = relationship("Answer", back_populates="submission")
     documents = relationship("Document", back_populates="submission")
     evidence = relationship("Evidence", back_populates="submission")

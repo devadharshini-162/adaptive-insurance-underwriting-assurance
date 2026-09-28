@@ -10,6 +10,7 @@ from .engine import evaluate_requirements
 from .normalization import normalize_answers
 
 CRITICAL_FIELDS = ["annual_revenue", "property_value", "hazardous_materials", "risk_level"]
+FIELD_LABELS = {"annual_revenue": "Annual revenue", "property_value": "Property value", "hazardous_materials": "Hazardous materials", "risk_level": "Risk classification"}
 
 def generate_issues_for_submission(db: Session, submission_id: int) -> List[UnderwritingIssue]:
     """
@@ -33,6 +34,7 @@ def generate_issues_for_submission(db: Session, submission_id: int) -> List[Unde
             continue
             
         c_key = check.details.get("canonical_key", "unknown")
+        field_label = FIELD_LABELS.get(c_key, "Submitted information")
         
         # Determine Severity based on rule-driven configuration
         severity = "MEDIUM"
@@ -43,21 +45,25 @@ def generate_issues_for_submission(db: Session, submission_id: int) -> List[Unde
             # Only elevate to an issue if it is a critical field that requires verification
             if c_key in CRITICAL_FIELDS:
                 severity = "MEDIUM"
-                action = f"Review unparseable values for {c_key}."
+                action = f"Review the {field_label.lower()} in the application and supporting evidence."
             else:
                 # Informational for non-critical NOT_COMPARABLE
                 severity = "LOW"
-                action = f"Verify {c_key} manually during manual review."
+                action = f"Verify the {field_label.lower()} during review."
+            category = "Requires manual review"
+            description = f"Unable to verify {field_label.lower()}"
         else: # CONFLICT
-            action = f"Clarify discrepancies in {c_key} between application and documents."
+            category = "Document mismatch"
+            description = f"{field_label} does not match supporting evidence"
+            action = f"Confirm the correct {field_label.lower()} with the applicant."
             if severity == "HIGH":
-                action = f"Resolve critical discrepancy in {c_key} before proceeding."
+                action = f"Confirm the correct {field_label.lower()} before making a final decision."
 
         ui = UnderwritingIssue(
             submission_id=submission_id,
             consistency_check_id=check.id,
-            issue_type="DISCREPANCY",
-            description=f"Discrepancy detected in {c_key}: {check.details.get('reason')}",
+            issue_type="REQUIRES_MANUAL_REVIEW" if check.status == "NOT_COMPARABLE" else "DOCUMENT_MISMATCH",
+            description=description,
             status="open",
             details={
                 "source_rule": f"Consistency check for {c_key}",
@@ -66,7 +72,9 @@ def generate_issues_for_submission(db: Session, submission_id: int) -> List[Unde
                 "raw_values": [v.get("raw_value") for v in check.details.get("values", [])],
                 "normalized_values": [v.get("norm_value") for v in check.details.get("values", [])],
                 "comparison_result": check.status,
-                "reason": check.details.get("reason"),
+                "display_category": category,
+                "summary": description,
+                "reason": f"The {field_label.lower()} recorded in the application differs from the available supporting evidence." if check.status == "CONFLICT" else f"The available evidence is not sufficient to verify the {field_label.lower()} automatically.",
                 "severity": severity,
                 "recommended_action": action
             }
@@ -98,8 +106,8 @@ def generate_issues_for_submission(db: Session, submission_id: int) -> List[Unde
             ui = UnderwritingIssue(
                 submission_id=submission_id,
                 consistency_check_id=None,
-                issue_type="MISSING_EVIDENCE",
-                description=f"Missing required document: {req['name']}",
+                issue_type="REQUIREMENT_NOT_MET",
+                description=f"Required document missing: {req['name']}",
                 status="open",
                 details={
                     "source_rule": "Conditional Requirement Engine",
@@ -108,7 +116,9 @@ def generate_issues_for_submission(db: Session, submission_id: int) -> List[Unde
                     "raw_values": [],
                     "normalized_values": [],
                     "comparison_result": "MISSING",
-                    "reason": f"System determined {req['name']} is required based on submitted answers.",
+                    "display_category": "Requirement not met",
+                    "summary": f"Required document missing: {req['name']}",
+                    "reason": f"{req['name']} is required for this application based on the information provided.",
                     "severity": "HIGH",
                     "recommended_action": f"Request upload of {req['name']} from the applicant."
                 }

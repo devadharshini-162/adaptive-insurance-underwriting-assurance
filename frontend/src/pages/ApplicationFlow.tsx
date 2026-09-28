@@ -3,8 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import type { ApplicationProfile, Question, RequirementView } from '../services/api';
 
-const steps = ['business', 'property', 'risk', 'questions'];
-const titles: Record<string, string> = { business: 'Business information', property: 'Property information', risk: 'Risk information', questions: 'Additional questions' };
+const propertySteps = ['business', 'property', 'risk', 'questions'];
+const generalSteps = ['business', 'risk', 'questions'];
+const consumerSteps = ['risk', 'questions'];
+const titles: Record<string, string> = { business: 'Business information', property: 'Property information', risk: 'Product risk information', questions: 'Additional questions' };
+export const consumerProducts = new Set([
+  'Motor Insurance', 'Home Insurance', 'Travel Insurance', 'Personal Cyber Protection',
+  'Personal Valuables & Marine', 'Personal Liability Protection',
+]);
+
 
 const fields: Record<string, { key: keyof ApplicationProfile; label: string; type?: string; options?: string[] }[]> = {
   business: [
@@ -26,6 +33,7 @@ export default function ApplicationFlow() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [questions, setQuestions] = useState<Question[]>([]);
   const [requirements, setRequirements] = useState<RequirementView[]>([]);
+  const [productName, setProductName] = useState('Insurance');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -33,6 +41,8 @@ export default function ApplicationFlow() {
   async function refresh() {
     const state = await api.getApplication(id);
     setProfile(state.profile); setAnswers(state.answers);
+    const products = await api.getProducts();
+    setProductName(products.find((product) => product.id === state.submission.product_id)?.name || 'Insurance');
     const evaluated = await api.evaluate(state.submission.product_id, state.answers, state.profile);
     setQuestions(evaluated.applicable_questions); setRequirements(evaluated.requirements);
   }
@@ -60,28 +70,32 @@ export default function ApplicationFlow() {
     try {
       if (step === 'business' || step === 'property') await api.saveApplication(id, profile);
       if (step === 'risk' || step === 'questions') await api.saveAnswers(id, answers);
-      const index = steps.indexOf(step);
-      if (index < steps.length - 1) go(steps[index + 1]);
+      const index = journeySteps.indexOf(step);
+      if (index < journeySteps.length - 1) go(journeySteps[index + 1]);
       else navigate(`/review/${id}`, { state: { requirements } });
     } catch (e: unknown) { setError(e instanceof Error ? e.message : 'Unable to save your application.'); }
     finally { setSaving(false); }
   }
+  const isConsumerApplication = consumerProducts.has(productName);
+  const journeySteps = isConsumerApplication ? consumerSteps : productName === 'Commercial Property' ? propertySteps : generalSteps;
+  
   const currentFields = fields[step] || [];
+  const stepTitle = titles[step] || 'Application';
   const visibleQuestions = questions.filter((question) => step === 'risk' ? question.section === 'risk' : step === 'questions' ? question.section !== 'risk' : false);
   const isComplete = currentFields.length > 0
     ? currentFields.every((field) => profile[field.key] !== undefined && profile[field.key] !== '')
     : visibleQuestions.every((q) => !q.is_required || !!answers[String(q.id)]);
   if (loading) return <div className="page"><p>Loading your application…</p></div>;
 
-  return <div className="page">
-    <nav className="breadcrumb"><button className="link-btn" onClick={() => steps.indexOf(step) ? go(steps[steps.indexOf(step) - 1]) : navigate('/customer')}>← Back</button><span> / {steps.indexOf(step) + 1} of {steps.length}</span></nav>
-    <h1>{titles[step] || 'Application'}</h1>
-    <p className="subtitle">Your progress is saved when you continue.</p>
-    {error && <div className="error-box">{error}</div>}
-    <div className="question-form">
-      {currentFields.map((field) => <div className="field-group" key={field.key}><label>{field.label}</label>{field.options ? <select value={String(profile[field.key] || '')} onChange={(e) => updateProfile(field.key, e.target.value)}><option value="">Select an option</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select> : <input type={field.type || 'text'} value={String(profile[field.key] || '')} onChange={(e) => updateProfile(field.key, e.target.value)} />}</div>)}
-      {visibleQuestions.map((question) => <div className="field-group" key={question.id}><label>{question.text}{question.is_required && <span className="required-star">*</span>}</label>{question.field_type === 'yesno' || question.field_type === 'select' ? <select value={answers[String(question.id)] || ''} onChange={(e) => updateAnswer(question, e.target.value)}><option value="">Select an option</option>{(question.options.length ? question.options : ['yes', 'no']).map((option) => <option key={option} value={option}>{option}</option>)}</select> : <input type={question.field_type === 'number' ? 'number' : 'text'} value={answers[String(question.id)] || ''} onChange={(e) => updateAnswer(question, e.target.value)} />}</div>)}
-    </div>
-    <button className="btn-primary" disabled={!isComplete || saving} onClick={continueFlow}>{saving ? 'Saving…' : step === 'questions' ? 'Continue to documents' : 'Continue'}</button>
-  </div>;
+  const index = journeySteps.indexOf(step);
+  return <div className="page application-shell">
+    <aside className="journey-stepper" aria-label="Application progress"><ol>{journeySteps.map((item, itemIndex) => <li key={item}><button className={`${item === step ? 'active' : ''} ${itemIndex < index ? 'done' : ''}`} disabled={itemIndex > index} onClick={() => itemIndex < index && go(item)}><span className="step-number">{itemIndex + 1}</span><span className="step-label">{titles[item]}</span></button></li>)}</ol></aside>
+    <section className="panel form-surface"><nav className="breadcrumb"><button className="link-btn" onClick={() => index ? go(journeySteps[index - 1]) : navigate('/customer')}>← Back</button><span>{productName} application</span></nav>
+      <h1>{stepTitle}</h1><p className="subtitle">Complete the information relevant to your {productName} application. Your answers are saved securely as you progress.</p>
+      {error && <div className="error-box" role="alert">{error}</div>}
+      <div className="form-grid">
+        {currentFields.map((field) => <div className={`field-group ${field.key === 'business_address' || field.key === 'property_operations' ? 'full' : ''}`} key={field.key}><label>{field.label} <span className="required-star" aria-label="required">*</span></label>{field.options ? <select value={String(profile[field.key] || '')} onChange={(e) => updateProfile(field.key, e.target.value)}><option value="">Select an option</option>{field.options.map((option) => <option key={option}>{option}</option>)}</select> : <input type={field.type || 'text'} value={String(profile[field.key] || '')} onChange={(e) => updateProfile(field.key, e.target.value)} />}</div>)}
+        {visibleQuestions.map((question) => <div className="field-group full" key={question.id}><label>{question.text}{question.is_required && <span className="required-star" aria-label="required">*</span>}</label>{question.field_type === 'yesno' || question.field_type === 'select' ? <select value={answers[String(question.id)] || ''} onChange={(e) => updateAnswer(question, e.target.value)}><option value="">Select an option</option>{(question.options.length ? question.options : ['yes', 'no']).map((option) => <option key={option} value={option}>{option}</option>)}</select> : <input type={question.field_type === 'number' ? 'number' : 'text'} value={answers[String(question.id)] || ''} onChange={(e) => updateAnswer(question, e.target.value)} />}</div>)}
+      </div><div className="form-actions"><button className="btn-secondary" onClick={() => index ? go(journeySteps[index - 1]) : navigate('/customer')}>Back</button><button className="btn-primary" disabled={!isComplete || saving} onClick={continueFlow}>{saving ? 'Saving…' : step === 'questions' ? 'Continue to documents' : 'Continue'}</button></div>
+    </section></div>;
 }

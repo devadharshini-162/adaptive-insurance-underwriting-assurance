@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Insurance Submission and Underwriting Workflow</title><desc id="desc">Flow from product selection through underwriter review and final decision.</desc>
+  <defs><style>text{font-family:Arial,sans-serif;fill:#263238}.h{font-size:25px;font-weight:700}.t{font-size:18px;font-weight:700}.s{font-size:15px;fill:#546e7a}.box{stroke:#355c52;stroke-width:2;rx:15}.a{stroke:#536d63;stroke-width:3;fill:none;marker-end:url(#m)}</style><marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#536d63"/></marker></defs>
+  <rect width="1200" height="760" fill="#fbfaf5"/><text x="600" y="48" text-anchor="middle" class="h">Customer-to-Underwriter Submission Workflow</text>
+  <g text-anchor="middle"><rect x="75" y="105" width="230" height="75" fill="#e4f1eb" class="box"/><text x="190" y="137" class="t">1. Select product</text><text x="190" y="162" class="s">Personal or commercial journey</text>
+  <rect x="365" y="105" width="230" height="75" fill="#e4f1eb" class="box"/><text x="480" y="137" class="t">2. Select insurer</text><text x="480" y="162" class="s">Demonstration insurer</text>
+  <rect x="655" y="105" width="230" height="75" fill="#e4f1eb" class="box"/><text x="770" y="137" class="t">3. Select underwriter</text><text x="770" y="162" class="s">Filtered by insurer &amp; product</text>
+  <rect x="945" y="105" width="180" height="75" fill="#e4f1eb" class="box"/><text x="1035" y="137" class="t">4. Draft</text><text x="1035" y="162" class="s">Saved securely</text>
+  <rect x="260" y="285" width="260" height="82" fill="#e4f1eb" class="box"/><text x="390" y="318" class="t">5. Complete application</text><text x="390" y="345" class="s">Adaptive questions &amp; documents</text>
+  <rect x="680" y="285" width="260" height="82" fill="#fff0d7" class="box"/><text x="810" y="318" class="t">6. Submit for review</text><text x="810" y="345" class="s">Evidence checks and issue generation</text>
+  <rect x="260" y="470" width="260" height="82" fill="#fff0d7" class="box"/><text x="390" y="503" class="t">7. Underwriter review</text><text x="390" y="530" class="s">Assigned queue only; drafts excluded</text>
+  <rect x="680" y="470" width="260" height="82" fill="#fff0d7" class="box"/><text x="810" y="503" class="t">8. Resolve suggestions</text><text x="810" y="530" class="s">Accept, dismiss, or request information</text>
+  <rect x="470" y="635" width="260" height="75" fill="#e1f0e9" class="box"/><text x="600" y="667" class="t">9. Final decision</text><text x="600" y="692" class="s">Approve, decline, or return for action</text></g>
+  <path d="M305 143 H363 M595 143 H653 M885 143 H943 M1035 180 V235 H520 V285 M520 326 H678 M810 367 V425 H390 V470 M520 511 H678 M810 552 V615 H600 V633" class="a"/>
+  <path d="M260 511 H150 V326 H258" class="a"/><text x="122" y="402" class="s">Information requested</text>
+  <text x="600" y="742" text-anchor="middle" class="s">Figure 2. The enforced draft-to-review lifecycle and decision flow.</text>
+</svg>

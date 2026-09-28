@@ -55,7 +55,7 @@ def test_missing_critical_requirement(db_session, setup_data):
 
     issues = generate_issues_for_submission(db_session, sub.id)
     assert len(issues) == 1
-    assert issues[0].issue_type == "MISSING_EVIDENCE"
+    assert issues[0].issue_type == "REQUIREMENT_NOT_MET"
     assert issues[0].details["severity"] == "HIGH"
     assert issues[0].details["comparison_result"] == "MISSING"
 
@@ -210,5 +210,19 @@ def test_multiple_simultaneous_issues(db_session, setup_data):
     # 2 conflicts + 1 missing requirement = 3
     assert len(issues) == 3
     types = {i.issue_type for i in issues}
-    assert types == {"DISCREPANCY", "MISSING_EVIDENCE"}
+    assert types == {"DOCUMENT_MISMATCH", "REQUIREMENT_NOT_MET"}
 
+def test_issue_language_is_concise_and_underwriter_focused(db_session, setup_data):
+    _, _, sub, _, _ = setup_data
+    check = ConsistencyCheck(
+        submission_id=sub.id,
+        status="CONFLICT",
+        details={"canonical_key": "property_value", "values": [{"source": "answer"}, {"source": "document_4"}]},
+    )
+    db_session.add(check); db_session.commit()
+
+    issue = generate_issues_for_submission(db_session, sub.id)[0]
+    assert issue.issue_type == "DOCUMENT_MISMATCH"
+    assert issue.description == "Property value does not match supporting evidence"
+    assert issue.details["display_category"] == "Document mismatch"
+    assert "Confirm the correct property value" in issue.details["recommended_action"]

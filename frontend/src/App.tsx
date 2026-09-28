@@ -7,6 +7,7 @@ import ReviewPage from './pages/ReviewPage';
 import UnderwriterDashboard from './pages/UnderwriterDashboard';
 import SubmissionDetail from './pages/SubmissionDetail';
 import LoginPage from './pages/LoginPage';
+import ProfilePage from './pages/ProfilePage';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import ProtectedRoute from './auth/ProtectedRoute';
 import './App.css';
@@ -29,11 +30,16 @@ function AppRoutes() {
     <>
       <header className="app-header">
         <div className="header-left">
-          <Link to={portal} className="app-logo">🛡 InsuranceAssurance</Link>
+          <Link to={portal} className="app-logo">Insurance Assurance</Link>
+          {session && <nav className="header-nav" aria-label="Primary navigation">
+            <Link to={portal} className="header-link">{session.role === 'underwriter' ? 'Queue' : 'Dashboard'}</Link>
+            {session.role === 'customer' && <><Link to="/customer" className="header-link">Applications</Link><Link to="/customer/new" className="header-link">New application</Link></>}
+          </nav>}
         </div>
         <div className="header-right">
           {session && <>
-            <Link to={portal} className="header-link">{session.role === 'underwriter' ? 'Underwriter portal' : 'Customer portal'}</Link>
+            <span className="role-chip">{session.role}</span>
+            <Link to="/profile" className="header-link">Profile</Link>
             <button className="header-link header-button" onClick={logout}>Log out</button>
           </>}
         </div>
@@ -43,6 +49,7 @@ function AppRoutes() {
           <Route path="/" element={<Navigate to={session ? portal : '/login/customer'} replace />} />
           <Route path="/login/customer" element={<LoginPage role="customer" />} />
           <Route path="/login/underwriter" element={<LoginPage role="underwriter" />} />
+          <Route element={<ProtectedRoute />}><Route path="/profile" element={<ProfilePage />} /></Route>
           <Route element={<ProtectedRoute role="customer" />}>
             <Route path="/customer" element={<CustomerDashboard />} />
             <Route path="/customer/new" element={<NewSubmission />} />

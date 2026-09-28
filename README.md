@@ -112,7 +112,7 @@ User/Broker                React UI                   FastAPI                   
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| Python | ≥ 3.11 | 3.14 tested |
+| Python | 3.11 | Use the supported Python 3.11 runtime; the pinned FastAPI/Starlette test client is not supported on this project's system Python 3.14 environment. |
 | Node.js | ≥ 18 | 20 LTS recommended |
 | PostgreSQL | ≥ 14 | Must be running locally |
 | Tesseract OCR | ≥ 4.1 | Required for image/scanned PDF OCR |
@@ -133,9 +133,9 @@ sudo apt-get install tesseract-ocr tesseract-ocr-eng
 ## Backend Setup
 
 ```bash
-# 1. Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+# 1. Create and activate a Python 3.11 virtual environment
+python3.11 -m venv venv311
+source venv311/bin/activate   # Windows: venv311\Scripts\activate
 
 # 2. Install dependencies
 pip install -r backend/requirements.txt
@@ -148,8 +148,8 @@ cp backend/.env.example backend/.env
 cd backend
 alembic upgrade head
 
-# 5. Seed initial data (products, questions, requirements)
-python scripts/seed.py   # if present, or use the API after startup
+# 5. Seed product, demonstration insurer and underwriter data
+python -m app.db.seed
 ```
 
 ---
@@ -211,8 +211,15 @@ alembic revision --autogenerate -m "description"
 alembic downgrade -1
 ```
 
-The initial schema migration (`954caae8332b`) creates all tables.  
-The second migration (`d545bc9dd84b`) adds the `details` JSON column to `underwriting_issues`.
+The migrations create the core submission schema, application/profile fields,
+document-review workflow, user profiles, and insurer/underwriter assignment
+fields. Always run `alembic upgrade head` before starting a new checkout.
+
+`python -m app.db.seed` is idempotent. It supplies 16 prototype product
+categories, four clearly labelled demonstration insurers, eight underwriters,
+five customers, and ten mapped demonstration submissions for local testing.
+All seed-only credentials are listed in [DEMO_CREDENTIALS.md](DEMO_CREDENTIALS.md).
+Do not use those accounts in a shared or production deployment.
 
 ---
 
@@ -253,7 +260,7 @@ All tests use **pytest** with isolated in-memory SQLite databases (no PostgreSQL
 ```bash
 # From project root, with venv active:
 cd backend
-../venv/bin/pytest -v
+../venv311/bin/pytest -v
 ```
 
 ### Test suites
@@ -267,7 +274,7 @@ cd backend
 | `test_issue_mapper.py` | 8 | Issue generation, severity, explainability, idempotency |
 | `test_e2e_integration.py` | 1 | Full lifecycle: create → answers → upload → issues → dashboard → action |
 | `test_real_document_validation.py` | 64 | Real-world field pattern extraction (ACORD 25, NFIP, IRDAI, FCA) |
-| **Total** | **127** | All pass |
+| **Total** | **175** | Full supported Python 3.11 suite passes |
 
 ---
 
@@ -275,10 +282,10 @@ cd backend
 
 | Area | Limitation |
 |------|-----------|
-| **Authentication** | No real auth; all requests use a stub `user_id=1`. JWT/RBAC is in the optional backlog. |
+| **Authentication** | JWT authentication and customer/underwriter RBAC are implemented. Demonstration underwriter credentials are local-development data only. |
 | **OCR quality** | Depends on Tesseract installation and scan resolution. Embedded-text PDFs work reliably. |
 | **Currency cross-comparison** | Revenue amounts in USD and INR are stored as raw integers without a currency flag; the consistency engine treats them as the same unit. Cross-currency comparison is out of scope. |
-| **question_id → canonical key mapping** | Hardcoded in `normalization.py` for the seeded Commercial Property product (IDs 1–5). Additional products need their own mapping entry. |
+| **Evidence normalization coverage** | The deterministic normalization and consistency mappings are most mature for Commercial Property. Other product paths use product-specific intake and requirements, but do not claim equivalent document-field extraction coverage. |
 | **Table-structured PDFs** | Fields inside complex PDF tables may not match the regex patterns if label and value appear in separate text fragments. |
 | **Multi-page field priority** | First-occurrence wins when the same label appears on multiple pages. |
 | **Concurrency** | No row-level locking; concurrent issue generation for the same submission could produce duplicates if called in rapid parallel. |

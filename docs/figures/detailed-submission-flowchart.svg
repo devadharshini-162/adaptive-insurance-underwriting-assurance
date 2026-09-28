@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180" role="img" aria-labelledby="title desc">
+  <title id="title">Detailed Submission Lifecycle Flowchart</title><desc id="desc">Flowchart covering selection, draft save, application completion, submission, issue handling, information requests and final decision.</desc>
+  <defs><style>text{font-family:Arial,sans-serif;fill:#243238}.title{font-size:31px;font-weight:700}.head{font-size:19px;font-weight:700}.small{font-size:15px}.box{stroke:#3e6558;stroke-width:2;rx:14}.decision{stroke:#3e6558;stroke-width:2;fill:#fff7e7}.a{stroke:#58746a;stroke-width:3;fill:none;marker-end:url(#arr)}.label{font-size:14px;fill:#567078;font-weight:700}</style><marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0 L0 6 L9 3 Z" fill="#58746a"/></marker></defs>
+  <rect width="1600" height="1180" fill="#fbfaf5"/><text x="800" y="48" text-anchor="middle" class="title">Detailed Customer Submission and Underwriter Review Flowchart</text>
+  <g text-anchor="middle"><rect x="650" y="90" width="300" height="62" fill="#e2f1e9" class="box"/><text x="800" y="128" class="head">Customer signs in</text>
+  <rect x="650" y="200" width="300" height="72" fill="#e2f1e9" class="box"/><text x="800" y="231" class="head">Select insurance product</text><text x="800" y="254" class="small">Personal or commercial path</text>
+  <rect x="650" y="320" width="300" height="72" fill="#e2f1e9" class="box"/><text x="800" y="351" class="head">Select insurer</text><text x="800" y="374" class="small">Demonstration insurer catalogue</text>
+  <rect x="650" y="440" width="300" height="72" fill="#e2f1e9" class="box"/><text x="800" y="471" class="head">Select eligible underwriter</text><text x="800" y="494" class="small">Filtered by insurer and product</text>
+  <rect x="650" y="560" width="300" height="72" fill="#e2f1e9" class="box"/><text x="800" y="591" class="head">Create draft application</text><text x="800" y="614" class="small">Customer / product / insurer / underwriter persisted</text>
+  <polygon points="800,690 940,750 800,810 660,750" class="decision"/><text x="800" y="748" class="head">Continue now?</text>
+  <rect x="160" y="865" width="300" height="80" fill="#e9edf8" class="box"/><text x="310" y="897" class="head">Save and reopen draft</text><text x="310" y="922" class="small">Customer can edit or delete</text>
+  <rect x="650" y="865" width="300" height="80" fill="#e2f1e9" class="box"/><text x="800" y="897" class="head">Complete application</text><text x="800" y="922" class="small">Profile, adaptive answers, documents</text>
+  <rect x="1140" y="865" width="300" height="80" fill="#fff0d7" class="box"/><text x="1290" y="897" class="head">Submit for underwriting</text><text x="1290" y="922" class="small">Checks, requirements and issues generated</text>
+  <rect x="1140" y="1005" width="300" height="80" fill="#fff0d7" class="box"/><text x="1290" y="1037" class="head">Assigned underwriter review</text><text x="1290" y="1062" class="small">Drafts are excluded from the queue</text>
+  <polygon points="800,1005 950,1060 800,1115 650,1060" class="decision"/><text x="800" y="1058" class="head">Open suggestions?</text>
+  <rect x="160" y="1005" width="300" height="80" fill="#fff0d7" class="box"/><text x="310" y="1037" class="head">Request information</text><text x="310" y="1062" class="small">Customer uploads / updates / resubmits</text>
+  <rect x="650" y="1125" width="300" height="45" fill="#e1f0e9" class="box"/><text x="800" y="1154" class="head">Approve or decline application</text></g>
+  <path d="M800 152 V198 M800 272 V318 M800 392 V438 M800 512 V558 M800 632 V688 M660 750 H310 V863 M800 810 V863 M950 750 H1290 V863 M1290 945 V1003 M1140 1045 H952 M650 1060 H462 M800 1115 V1123" class="a"/>
+  <path d="M310 1005 V975 H540 V905 H648" class="a"/><text x="482" y="970" class="label">Customer response</text>
+  <path d="M1140 1060 H952" class="a"/><text x="1040" y="1044" class="label">Resolve / dismiss</text>
+  <text x="470" y="735" class="label">No</text><text x="812" y="842" class="label">Yes</text><text x="1110" y="735" class="label">Submit</text><text x="970" y="1039" class="label">No</text><text x="622" y="1040" class="label">Yes</text>
+</svg>

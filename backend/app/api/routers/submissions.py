@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.api.deps import get_current_user, get_current_underwriter, get_current_customer
 from app.models.core import (
     Submission, User, Answer, ConsistencyCheck, UnderwritingIssue,
-    Document, ExtractedField, Evidence, AuditRecord, InsuranceProduct, ApplicationProfile, AdditionalRequest
+    Document, ExtractedField, Evidence, AuditRecord, InsuranceProduct, InsuranceCompany, ApplicationProfile, AdditionalRequest
 )
 from pydantic import BaseModel
 from datetime import datetime
@@ -22,12 +23,16 @@ router = APIRouter(prefix="/api/submissions", tags=["Submissions"])
 
 class SubmissionCreate(BaseModel):
     product_id: int
+    insurance_company_id: Optional[int] = None
+    assigned_underwriter_id: Optional[int] = None
 
 class SubmissionOut(BaseModel):
     id: int
     product_id: int
     status: str
     created_at: datetime
+    insurance_company_id: Optional[int] = None
+    assigned_underwriter_id: Optional[int] = None
 
     model_config = {"from_attributes": True}
 
@@ -38,6 +43,8 @@ class SubmissionListOut(BaseModel):
     applicant_name: str
     status: str
     created_at: datetime
+    insurance_company_name: Optional[str] = None
+    assigned_underwriter_name: Optional[str] = None
 
 class ApplicationProfileIn(BaseModel):
     company_name: Optional[str] = None
@@ -71,6 +78,11 @@ def owned_submission(submission_id: int, db: Session, current_user: User) -> Sub
     sub = db.query(Submission).filter(Submission.id == submission_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
+    if current_user.role == "underwriter":
+        if sub.status == "draft":
+            raise HTTPException(status_code=404, detail="Draft applications are not available for underwriting review")
+        if sub.assigned_underwriter_id and sub.assigned_underwriter_id != current_user.id:
+            raise HTTPException(status_code=403, detail="This application is assigned to another underwriter")
     if current_user.role != "underwriter" and sub.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return sub
@@ -83,23 +95,50 @@ def submission_list_item(submission: Submission) -> dict:
         "applicant_name": submission.user.name if submission.user else "Not available",
         "status": submission.status,
         "created_at": submission.created_at,
+        "insurance_company_name": submission.insurance_company.name if submission.insurance_company else None,
+        "assigned_underwriter_name": submission.assigned_underwriter.name if submission.assigned_underwriter else None,
     }
 
 @router.post("", response_model=SubmissionOut)
 def create_submission(payload: SubmissionCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_customer)):
     """Create a new draft submission for a given product."""
-    submission = Submission(user_id=current_user.id, product_id=payload.product_id, status="draft")
+    if not db.query(InsuranceProduct).filter(InsuranceProduct.id == payload.product_id).first():
+        raise HTTPException(status_code=404, detail="Insurance product not found")
+    company = None
+    underwriter = None
+    if payload.insurance_company_id is not None:
+        company = db.query(InsuranceCompany).filter(InsuranceCompany.id == payload.insurance_company_id).first()
+        if not company:
+            raise HTTPException(status_code=404, detail="Insurance company not found")
+    if payload.assigned_underwriter_id is not None:
+        underwriter = db.query(User).filter(User.id == payload.assigned_underwriter_id, User.role == "underwriter").first()
+        if not underwriter:
+            raise HTTPException(status_code=404, detail="Underwriter not found")
+        if not company or underwriter.insurance_company_id != company.id or payload.product_id not in (underwriter.supported_product_ids or []):
+            raise HTTPException(status_code=422, detail="Choose an available underwriter for the selected insurance company and product.")
+    if bool(company) != bool(underwriter):
+        raise HTTPException(status_code=422, detail="Choose both an insurance company and an underwriter.")
+    # Once the configured insurer catalogue exists, an application must use
+    # it. This prevents a submitted UI application from bypassing assignment
+    # and becoming visible to an unrelated underwriter. The empty-catalogue
+    # fallback preserves first-run and isolated legacy test setup.
+    if db.query(InsuranceCompany).count() and not company:
+        raise HTTPException(status_code=422, detail="Choose an insurance company and an available underwriter before starting the application.")
+    submission = Submission(user_id=current_user.id, product_id=payload.product_id, insurance_company_id=company.id if company else None, assigned_underwriter_id=underwriter.id if underwriter else None, status="draft")
     db.add(submission)
     db.commit()
     db.refresh(submission)
-    db.add(AuditRecord(submission_id=submission.id, action="submission_created", context_data={"actor_role": "customer"}))
+    db.add(AuditRecord(submission_id=submission.id, action="submission_created", context_data={"actor_role": "customer", "insurance_company": company.name if company else None, "assigned_underwriter": underwriter.name if underwriter else None}))
     db.commit()
     return submission
 
 @router.get("", response_model=List[SubmissionListOut])
 def list_submissions(db: Session = Depends(get_db), current_user: User = Depends(get_current_underwriter)):
-    """List all submissions for the underwriter grid view."""
-    submissions = db.query(Submission).order_by(Submission.created_at.desc()).all()
+    """List submitted applications for the underwriter grid view, never drafts."""
+    submissions = db.query(Submission).filter(
+        Submission.status != "draft",
+        or_(Submission.assigned_underwriter_id.is_(None), Submission.assigned_underwriter_id == current_user.id),
+    ).order_by(Submission.created_at.desc()).all()
     return [submission_list_item(submission) for submission in submissions]
 
 @router.get("/mine", response_model=List[SubmissionListOut])
@@ -113,6 +152,33 @@ def list_my_submissions(db: Session = Depends(get_db), current_user: User = Depe
     )
     return [submission_list_item(submission) for submission in submissions]
 
+@router.delete("/{submission_id}", status_code=204)
+def delete_draft_submission(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_customer)):
+    """Permanently remove an unwanted draft owned by the current customer."""
+    sub = owned_submission(submission_id, db, current_user)
+    if sub.status != "draft":
+        raise HTTPException(status_code=409, detail="Only draft applications can be deleted.")
+
+    # Drafts may already contain saved answers, profile details, or uploaded
+    # documents. Remove dependent records first so the operation works with
+    # databases that enforce foreign keys, rather than leaving an unusable
+    # partial draft behind.
+    document_ids = [document.id for document in sub.documents]
+    if document_ids:
+        db.query(Evidence).filter(Evidence.submission_id == submission_id).delete(synchronize_session=False)
+        db.query(ExtractedField).filter(ExtractedField.document_id.in_(document_ids)).delete(synchronize_session=False)
+        db.query(Document).filter(Document.submission_id == submission_id).update(
+            {Document.replaced_by_document_id: None}, synchronize_session=False
+        )
+        db.query(Document).filter(Document.submission_id == submission_id).delete(synchronize_session=False)
+    db.query(UnderwritingIssue).filter(UnderwritingIssue.submission_id == submission_id).delete(synchronize_session=False)
+    db.query(ConsistencyCheck).filter(ConsistencyCheck.submission_id == submission_id).delete(synchronize_session=False)
+    db.query(AdditionalRequest).filter(AdditionalRequest.submission_id == submission_id).delete(synchronize_session=False)
+    db.query(Answer).filter(Answer.submission_id == submission_id).delete(synchronize_session=False)
+    db.query(AuditRecord).filter(AuditRecord.submission_id == submission_id).delete(synchronize_session=False)
+    db.delete(sub)
+    db.commit()
+
 @router.get("/{submission_id}", response_model=SubmissionOut)
 def get_submission(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return owned_submission(submission_id, db, current_user)
@@ -123,7 +189,9 @@ def get_application(submission_id: int, db: Session = Depends(get_db), current_u
     answers = db.query(Answer).filter(Answer.submission_id == submission_id).all()
     requests = db.query(AdditionalRequest).filter(AdditionalRequest.submission_id == submission_id).order_by(AdditionalRequest.created_at.desc()).all()
     decision = db.query(AuditRecord).filter(AuditRecord.submission_id == submission_id, AuditRecord.action.in_(["status_change_to_approved", "status_change_to_declined"])).order_by(AuditRecord.timestamp.desc()).first()
-    return {"submission": {"id": sub.id, "product_id": sub.product_id, "status": sub.status},
+    return {"submission": {"id": sub.id, "product_id": sub.product_id, "status": sub.status,
+            "insurance_company_id": sub.insurance_company_id, "insurance_company_name": sub.insurance_company.name if sub.insurance_company else None,
+            "assigned_underwriter_id": sub.assigned_underwriter_id, "assigned_underwriter_name": sub.assigned_underwriter.name if sub.assigned_underwriter else None},
             "profile": profile_data(sub.application_profile),
             "answers": {str(answer.question_id): answer.value for answer in answers},
             "decision_message": (decision.context_data or {}).get("note") if decision else None,
@@ -131,9 +199,7 @@ def get_application(submission_id: int, db: Session = Depends(get_db), current_u
 
 @router.post("/{submission_id}/requests")
 def create_additional_request(submission_id: int, payload: AdditionalRequestIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_underwriter)):
-    sub = db.query(Submission).filter(Submission.id == submission_id).first()
-    if not sub:
-        raise HTTPException(status_code=404, detail="Submission not found")
+    sub = owned_submission(submission_id, db, current_user)
     if payload.request_type not in {"information", "document"} or not payload.message.strip() or (payload.request_type == "document" and not (payload.document_name or "").strip()):
         raise HTTPException(status_code=422, detail="Provide a request type, message, and document name when requesting a document.")
     ensure_underwriter_transition(sub.status, "info_requested")
@@ -175,11 +241,7 @@ def save_answers(submission_id: int, payload: Dict[str, str], db: Session = Depe
 
 @router.post("/{submission_id}/consistency/run")
 def run_consistency(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    sub = db.query(Submission).filter(Submission.id == submission_id).first()
-    if not sub:
-        raise HTTPException(status_code=404, detail="Submission not found")
-    if current_user.role != "underwriter" and sub.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+    owned_submission(submission_id, db, current_user)
     try:
         checks = run_consistency_checks(db, submission_id)
         return {"status": "ok", "checks_run": len(checks)}
@@ -188,11 +250,7 @@ def run_consistency(submission_id: int, db: Session = Depends(get_db), current_u
 
 @router.get("/{submission_id}/consistency")
 def get_consistency(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    sub = db.query(Submission).filter(Submission.id == submission_id).first()
-    if not sub:
-        raise HTTPException(status_code=404, detail="Submission not found")
-    if current_user.role != "underwriter" and sub.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+    owned_submission(submission_id, db, current_user)
     checks = db.query(ConsistencyCheck).filter(ConsistencyCheck.submission_id == submission_id).all()
     result = []
     for c in checks:
@@ -205,11 +263,7 @@ def get_consistency(submission_id: int, db: Session = Depends(get_db), current_u
 
 @router.post("/{submission_id}/issues/generate")
 def generate_issues(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    sub = db.query(Submission).filter(Submission.id == submission_id).first()
-    if not sub:
-        raise HTTPException(status_code=404, detail="Submission not found")
-    if current_user.role != "underwriter" and sub.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+    sub = owned_submission(submission_id, db, current_user)
     if current_user.role == "customer":
         target_status = customer_submission_target(sub.status)
     else:
@@ -235,11 +289,7 @@ def generate_issues(submission_id: int, db: Session = Depends(get_db), current_u
 
 @router.get("/{submission_id}/issues")
 def get_issues(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    sub = db.query(Submission).filter(Submission.id == submission_id).first()
-    if not sub:
-        raise HTTPException(status_code=404, detail="Submission not found")
-    if current_user.role != "underwriter" and sub.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+    owned_submission(submission_id, db, current_user)
     issues = db.query(UnderwritingIssue).filter(UnderwritingIssue.submission_id == submission_id).all()
     result = []
     for i in issues:
@@ -257,10 +307,7 @@ def get_issues(submission_id: int, db: Session = Depends(get_db), current_user: 
 @router.get("/{submission_id}/dashboard")
 def get_dashboard_summary(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_underwriter)):
     """Full dashboard payload for the underwriter detail view."""
-    sub = db.query(Submission).filter(Submission.id == submission_id).first()
-    if not sub:
-        raise HTTPException(status_code=404, detail="Submission not found")
-
+    sub = owned_submission(submission_id, db, current_user)
     product = db.query(InsuranceProduct).filter(InsuranceProduct.id == sub.product_id).first()
     user = db.query(User).filter(User.id == sub.user_id).first()
 
@@ -340,6 +387,8 @@ def get_dashboard_summary(submission_id: int, db: Session = Depends(get_db), cur
             "product_id": sub.product_id,
             "product_name": product.name if product else "Unknown",
             "applicant": user.name if user else "Unknown",
+            "insurance_company": sub.insurance_company.name if sub.insurance_company else None,
+            "assigned_underwriter": sub.assigned_underwriter.name if sub.assigned_underwriter else None,
             "status": sub.status,
             "created_at": sub.created_at.isoformat() if sub.created_at else None,
         },
@@ -361,6 +410,7 @@ class IssueAction(BaseModel):
 
 @router.put("/{submission_id}/issues/{issue_id}")
 def update_issue(submission_id: int, issue_id: int, payload: IssueAction, db: Session = Depends(get_db), current_user: User = Depends(get_current_underwriter)):
+    owned_submission(submission_id, db, current_user)
     issue = db.query(UnderwritingIssue).filter(
         UnderwritingIssue.id == issue_id,
         UnderwritingIssue.submission_id == submission_id
@@ -391,9 +441,7 @@ class StatusUpdate(BaseModel):
 
 @router.put("/{submission_id}/status")
 def update_submission_status(submission_id: int, payload: StatusUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_underwriter)):
-    sub = db.query(Submission).filter(Submission.id == submission_id).first()
-    if not sub:
-        raise HTTPException(status_code=404, detail="Submission not found")
+    sub = owned_submission(submission_id, db, current_user)
 
     ensure_underwriter_transition(sub.status, payload.status)
 

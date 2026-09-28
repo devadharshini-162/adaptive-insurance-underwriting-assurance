@@ -35,6 +35,10 @@ def check_document_access(doc: DocumentModel, db: Session, current_user: User) -
     sub = db.query(Submission).filter(Submission.id == doc.submission_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
+    if current_user.role == "underwriter" and sub.status == "draft":
+        raise HTTPException(status_code=404, detail="Draft documents are not available for underwriting review")
+    if current_user.role == "underwriter" and sub.assigned_underwriter_id and sub.assigned_underwriter_id != current_user.id:
+        raise HTTPException(status_code=403, detail="This application is assigned to another underwriter")
     if current_user.role != "underwriter" and sub.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return sub

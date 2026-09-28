@@ -7,7 +7,7 @@ and flags discrepancies.
 
 from typing import Any, Dict, List
 from sqlalchemy.orm import Session
-from ..models.core import Answer, Evidence, ConsistencyCheck, Submission, ExtractedField
+from ..models.core import Answer, Evidence, ConsistencyCheck, Submission, ExtractedField, UnderwritingIssue
 from .normalization import normalize_answers, NormalizedValue
 
 CONSISTENT = "CONSISTENT"
@@ -77,7 +77,13 @@ def run_consistency_checks(db: Session, submission_id: int) -> List[ConsistencyC
     if not sub:
         raise ValueError(f"Submission {submission_id} not found.")
 
-    # 1. Clear existing consistency checks for a fresh run
+    # 1. Clear existing consistency checks for a fresh run.  Issues reference
+    # checks for traceability, so detach them before the checks are replaced;
+    # the issue mapper subsequently recreates the current issue set.
+    db.query(UnderwritingIssue).filter(
+        UnderwritingIssue.submission_id == submission_id,
+        UnderwritingIssue.consistency_check_id.isnot(None),
+    ).update({UnderwritingIssue.consistency_check_id: None}, synchronize_session=False)
     db.query(ConsistencyCheck).filter(ConsistencyCheck.submission_id == submission_id).delete()
 
     # 2. Extract Answers -> NormalizedValues

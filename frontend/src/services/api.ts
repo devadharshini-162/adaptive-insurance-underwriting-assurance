@@ -7,6 +7,7 @@ export interface Session {
   token: string;
   role: UserRole;
 }
+export interface UserProfile { email: string; name: string; role: UserRole; phone?: string | null; organization?: string | null; job_title?: string | null; }
 
 function roleFromToken(token: string): UserRole | null {
   try {
@@ -57,6 +58,8 @@ export interface Product {
   name: string;
   description: string;
 }
+export interface InsuranceCompany { id: number; name: string; description?: string | null; is_demo: boolean; }
+export interface AvailableUnderwriter { id: number; name: string; company_id: number; company_name: string; role_title?: string | null; supported_product_ids: number[]; specialization?: string | null; years_experience?: number | null; availability_status?: string | null; professional_description?: string | null; }
 
 export interface Question {
   id: number;
@@ -72,6 +75,8 @@ export interface Submission {
   product_id: number;
   status: string;
   created_at: string;
+  insurance_company_id?: number | null;
+  assigned_underwriter_id?: number | null;
 }
 
 export interface SubmissionListItem {
@@ -81,6 +86,8 @@ export interface SubmissionListItem {
   applicant_name: string;
   status: string;
   created_at: string;
+  insurance_company_name?: string | null;
+  assigned_underwriter_name?: string | null;
 }
 
 export interface RequirementView {
@@ -132,6 +139,7 @@ export interface IngestResponse {
 // ── API calls ────────────────────────────────────────────────────────────────
 
 export const api = {
+  register: (payload: { email: string; password: string; name: string; role: UserRole; phone?: string; organization?: string; job_title?: string }) => request<UserProfile>('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) }),
   login: async (email: string, password: string): Promise<Session> => {
     const body = new URLSearchParams({ username: email, password });
     const res = await fetch(`${BASE}/api/auth/login`, {
@@ -148,16 +156,23 @@ export const api = {
     if (!role) throw new Error('The sign-in response was invalid. Please try again.');
     return { token, role };
   },
+  getProfile: () => request<UserProfile>('/api/auth/me'),
+  updateProfile: (payload: Partial<UserProfile> & { current_password?: string; new_password?: string }) => request<UserProfile>('/api/auth/me', { method: 'PUT', body: JSON.stringify(payload) }),
 
   getProducts: () => request<Product[]>('/api/products'),
 
   getQuestions: (productId: number) =>
     request<Question[]>(`/api/products/${productId}/questions`),
 
-  createSubmission: (productId: number) =>
+  getInsuranceCompanies: () => request<InsuranceCompany[]>('/api/products/companies'),
+
+  getAvailableUnderwriters: (companyId: number, productId: number) =>
+    request<AvailableUnderwriter[]>(`/api/products/underwriters?company_id=${companyId}&product_id=${productId}`),
+
+  createSubmission: (productId: number, insuranceCompanyId?: number, assignedUnderwriterId?: number) =>
     request<Submission>('/api/submissions', {
       method: 'POST',
-      body: JSON.stringify({ product_id: productId }),
+      body: JSON.stringify({ product_id: productId, insurance_company_id: insuranceCompanyId, assigned_underwriter_id: assignedUnderwriterId }),
     }),
 
   evaluate: (productId: number, answers: Record<string, string>, contextData: ApplicationProfile = {}) =>
@@ -199,6 +214,8 @@ export const api = {
   getAllSubmissions: () => request<SubmissionListItem[]>('/api/submissions'),
 
   getMySubmissions: () => request<SubmissionListItem[]>('/api/submissions/mine'),
+
+  deleteDraftSubmission: (submissionId: number) => request<void>(`/api/submissions/${submissionId}`, { method: 'DELETE' }),
 
   generateIssues: (submissionId: number) =>
     request<{ status: string; issues_generated: number }>(`/api/submissions/${submissionId}/issues/generate`, {
