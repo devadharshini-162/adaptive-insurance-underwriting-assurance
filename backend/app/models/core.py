@@ -7,8 +7,9 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True)
+    password_hash = Column(String)
     name = Column(String)
-    role = Column(String, default="agent") # agent or underwriter
+    role = Column(String, default="customer") # customer or underwriter
     submissions = relationship("Submission", back_populates="user")
 
 class InsuranceProduct(Base):

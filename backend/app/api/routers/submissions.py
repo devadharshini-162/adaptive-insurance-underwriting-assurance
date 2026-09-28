@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.database import get_db
+from app.api.deps import get_current_user, get_current_underwriter
 from app.models.core import (
     Submission, User, Answer, ConsistencyCheck, UnderwritingIssue,
     Document, ExtractedField, Evidence, AuditRecord, InsuranceProduct
@@ -26,37 +27,35 @@ class SubmissionOut(BaseModel):
     model_config = {"from_attributes": True}
 
 @router.post("", response_model=SubmissionOut)
-def create_submission(payload: SubmissionCreate, db: Session = Depends(get_db)):
+def create_submission(payload: SubmissionCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Create a new draft submission for a given product."""
-    user = db.query(User).filter(User.id == 1).first()
-    if not user:
-        user = User(email="agent@example.com", name="Demo Agent", role="agent")
-        db.add(user)
-        db.flush()
-
-    submission = Submission(user_id=user.id, product_id=payload.product_id, status="draft")
+    submission = Submission(user_id=current_user.id, product_id=payload.product_id, status="draft")
     db.add(submission)
     db.commit()
     db.refresh(submission)
     return submission
 
 @router.get("", response_model=List[SubmissionOut])
-def list_submissions(db: Session = Depends(get_db)):
+def list_submissions(db: Session = Depends(get_db), current_user: User = Depends(get_current_underwriter)):
     """List all submissions for the underwriter grid view."""
     return db.query(Submission).order_by(Submission.created_at.desc()).all()
 
 @router.get("/{submission_id}", response_model=SubmissionOut)
-def get_submission(submission_id: int, db: Session = Depends(get_db)):
+def get_submission(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     sub = db.query(Submission).filter(Submission.id == submission_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
+    if current_user.role != "underwriter" and sub.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     return sub
 
 @router.put("/{submission_id}/answers")
-def save_answers(submission_id: int, payload: Dict[str, str], db: Session = Depends(get_db)):
+def save_answers(submission_id: int, payload: Dict[str, str], db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     sub = db.query(Submission).filter(Submission.id == submission_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
+    if current_user.role != "underwriter" and sub.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     
     db.query(Answer).filter(Answer.submission_id == submission_id).delete()
     
@@ -72,7 +71,12 @@ def save_answers(submission_id: int, payload: Dict[str, str], db: Session = Depe
     return {"status": "ok", "saved_count": len(payload)}
 
 @router.post("/{submission_id}/consistency/run")
-def run_consistency(submission_id: int, db: Session = Depends(get_db)):
+def run_consistency(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if current_user.role != "underwriter" and sub.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     try:
         checks = run_consistency_checks(db, submission_id)
         return {"status": "ok", "checks_run": len(checks)}
@@ -80,7 +84,12 @@ def run_consistency(submission_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=str(e))
 
 @router.get("/{submission_id}/consistency")
-def get_consistency(submission_id: int, db: Session = Depends(get_db)):
+def get_consistency(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if current_user.role != "underwriter" and sub.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     checks = db.query(ConsistencyCheck).filter(ConsistencyCheck.submission_id == submission_id).all()
     result = []
     for c in checks:
@@ -92,10 +101,12 @@ def get_consistency(submission_id: int, db: Session = Depends(get_db)):
     return {"consistency_checks": result}
 
 @router.post("/{submission_id}/issues/generate")
-def generate_issues(submission_id: int, db: Session = Depends(get_db)):
+def generate_issues(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     sub = db.query(Submission).filter(Submission.id == submission_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
+    if current_user.role != "underwriter" and sub.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
         
     try:
         run_consistency_checks(db, submission_id)
@@ -105,7 +116,12 @@ def generate_issues(submission_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/{submission_id}/issues")
-def get_issues(submission_id: int, db: Session = Depends(get_db)):
+def get_issues(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sub = db.query(Submission).filter(Submission.id == submission_id).first()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    if current_user.role != "underwriter" and sub.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     issues = db.query(UnderwritingIssue).filter(UnderwritingIssue.submission_id == submission_id).all()
     result = []
     for i in issues:
@@ -121,7 +137,7 @@ def get_issues(submission_id: int, db: Session = Depends(get_db)):
 # ── Phase 9: Dashboard endpoints ─────────────────────────────────────────────
 
 @router.get("/{submission_id}/dashboard")
-def get_dashboard_summary(submission_id: int, db: Session = Depends(get_db)):
+def get_dashboard_summary(submission_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_underwriter)):
     """Full dashboard payload for the underwriter detail view."""
     sub = db.query(Submission).filter(Submission.id == submission_id).first()
     if not sub:
@@ -220,7 +236,7 @@ class IssueAction(BaseModel):
     note: Optional[str] = None
 
 @router.put("/{submission_id}/issues/{issue_id}")
-def update_issue(submission_id: int, issue_id: int, payload: IssueAction, db: Session = Depends(get_db)):
+def update_issue(submission_id: int, issue_id: int, payload: IssueAction, db: Session = Depends(get_db), current_user: User = Depends(get_current_underwriter)):
     issue = db.query(UnderwritingIssue).filter(
         UnderwritingIssue.id == issue_id,
         UnderwritingIssue.submission_id == submission_id
@@ -250,7 +266,7 @@ class StatusUpdate(BaseModel):
     note: Optional[str] = None
 
 @router.put("/{submission_id}/status")
-def update_submission_status(submission_id: int, payload: StatusUpdate, db: Session = Depends(get_db)):
+def update_submission_status(submission_id: int, payload: StatusUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_underwriter)):
     sub = db.query(Submission).filter(Submission.id == submission_id).first()
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")

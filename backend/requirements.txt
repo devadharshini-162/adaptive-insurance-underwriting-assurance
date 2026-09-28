@@ -29,3 +29,7 @@ starlette==1.7.0
 typing_extensions==4.16.0
 typing-inspection==0.4.4
 uvicorn==0.54.0
+bcrypt==5.0.0
+PyJWT==2.15.0
+python-multipart==0.0.32
+email-validator==2.3.0

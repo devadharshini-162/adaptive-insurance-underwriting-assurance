@@ -6,6 +6,7 @@ from app.api.routers.engine import router as engine_router
 from app.api.routers.products import router as products_router
 from app.api.routers.submissions import router as submissions_router
 from app.api.routers.documents import router as documents_router
+from app.api.routers.auth import router as auth_router
 
 app = FastAPI(
     title="Assurance System API",
@@ -22,6 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(engine_router)
 app.include_router(products_router)
 app.include_router(submissions_router)
