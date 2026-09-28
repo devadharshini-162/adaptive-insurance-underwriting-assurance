@@ -29,7 +29,7 @@ function AppRoutes() {
     <>
       <header className="app-header">
         <div className="header-left">
-          <Link to={portal} className="app-logo">🛡 InsuranceAssurance</Link>
+          <Link to={portal} className="app-logo" aria-label="InsuranceAssurance home">InsuranceAssurance</Link>
         </div>
         <div className="header-right">
           {session && <>
