@@ -201,6 +201,19 @@ body {
 .dashboard-page {
   max-width: 1200px;
 }
+.portal-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
+.portal-heading .subtitle { margin-bottom: 0; }
+.submission-list { display: flex; flex-direction: column; gap: 1rem; }
+.submission-card { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem; background: #fff; border: 1.5px solid #dde; border-radius: 8px; }
+.submission-card h2 { margin-bottom: 0.35rem; font-size: 1.15rem; }
+.submission-meta { color: #666; font-size: 0.85rem; margin-top: 0.4rem; }
+.submission-actions { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
+.empty-state { padding: 2rem; background: #fff; border: 1.5px solid #dde; border-radius: 8px; text-align: center; }
+.empty-state p { margin: 0.5rem 0 1.25rem; color: #555; }
+@media (max-width: 640px) {
+  .portal-heading, .submission-card { align-items: stretch; flex-direction: column; }
+  .submission-actions { justify-content: space-between; }
+}
 .interactive-table tbody tr {
   cursor: pointer;
   transition: background 0.2s;
@@ -354,6 +367,20 @@ body {
   font-size: 0.95rem;
 }
 .header-link:hover { text-decoration: underline; }
+.app-logo { text-decoration: none; }
+.header-right { display: flex; align-items: center; gap: 1rem; }
+.header-button { background: none; border: none; font: inherit; }
+
+/* Authentication */
+.auth-page { min-height: calc(100vh - 58px); display: grid; place-items: center; padding: 2rem 1rem; }
+.auth-card { width: min(100%, 420px); display: flex; flex-direction: column; gap: 0.65rem; padding: 2rem; background: #fff; border: 1.5px solid #dde; border-radius: 10px; box-shadow: 0 8px 24px rgba(26, 26, 46, 0.08); }
+.auth-card h1 { margin: 0; font-size: 1.8rem; }
+.auth-card .subtitle { margin-bottom: 0.5rem; }
+.auth-card label { font-size: 0.9rem; font-weight: 600; }
+.auth-card input { padding: 0.65rem 0.75rem; border: 1.5px solid #ccd; border-radius: 6px; font: inherit; }
+.auth-eyebrow { color: #24728f; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.auth-switch { margin-top: 0.75rem; color: #555; font-size: 0.9rem; }
+.auth-switch a { color: #24728f; }
 
 /* Audit */
 .audit-panel { max-height: 400px; overflow-y: auto; }

@@ -1,6 +1,6 @@
 import operator
 
-def evaluate_condition(node, answers_dict):
+def evaluate_condition(node, answers_dict, context_data=None):
     """
     Evaluates a single rule node recursively against the provided answers map.
     Answers map should map question_id (as string) to the string value provided.
@@ -9,7 +9,7 @@ def evaluate_condition(node, answers_dict):
     # 1. Group Node
     if "conditions" in node:
         op = node.get("operator", "AND").upper()
-        results = [evaluate_condition(cond, answers_dict) for cond in node.get("conditions", [])]
+        results = [evaluate_condition(cond, answers_dict, context_data) for cond in node.get("conditions", [])]
         if op == "AND":
             return all(results)
         elif op == "OR":
@@ -22,10 +22,12 @@ def evaluate_condition(node, answers_dict):
     target_val = node.get("value")
     
     # Missing answer yields False implicitly
-    if question_id not in answers_dict:
+    if node.get("field"):
+        actual_val = (context_data or {}).get(node["field"])
+    else:
+        actual_val = answers_dict.get(question_id)
+    if actual_val is None or actual_val == "":
         return False
-        
-    actual_val = answers_dict[question_id]
     
     # Try parsing both as floats if numeric comparison is implied
     # Fallback to string comparison if parsing fails
@@ -55,7 +57,7 @@ def evaluate_condition(node, answers_dict):
     except TypeError:
         return False
 
-def evaluate_requirements(db_session, product_id: int, current_answers_dict: dict):
+def evaluate_requirements(db_session, product_id: int, current_answers_dict: dict, context_data=None):
     from app.models.core import Requirement, Question
     
     # Fetch all questions and requirements for this product
@@ -63,8 +65,9 @@ def evaluate_requirements(db_session, product_id: int, current_answers_dict: dic
     requirements = db_session.query(Requirement).filter(Requirement.product_id == product_id).all()
     
     applicable_questions = [
-        {"id": q.id, "text": q.text, "field_type": q.field_type, "is_required": q.is_required}
-        for q in questions
+        {"id": q.id, "text": q.text, "field_type": q.field_type, "is_required": q.is_required,
+         "section": q.section or "questions", "options": q.options or []}
+        for q in questions if q.condition_logic is None or evaluate_condition(q.condition_logic, current_answers_dict, context_data)
     ]
     
     triggered_reqs = []
@@ -81,7 +84,7 @@ def evaluate_requirements(db_session, product_id: int, current_answers_dict: dic
             })
         else:
             # Conditional requirement
-            is_triggered = evaluate_condition(req.rule_logic, current_answers_dict)
+            is_triggered = evaluate_condition(req.rule_logic, current_answers_dict, context_data)
             if is_triggered:
                 explanation = req.rule_logic.get("explanation", "Requirement activated based on provided answers.")
                 triggered_reqs.append({

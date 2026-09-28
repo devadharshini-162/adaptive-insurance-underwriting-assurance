@@ -24,7 +24,7 @@ export default function NewSubmission() {
     setError('');
     try {
       const sub = await api.createSubmission(selectedId);
-      navigate(`/questionnaire/${sub.id}/${selectedId}`);
+      navigate(`/application/${sub.id}/business`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
       setCreating(false);
@@ -35,7 +35,8 @@ export default function NewSubmission() {
 
   return (
     <div className="page">
-      <h1>New Submission</h1>
+      <nav className="breadcrumb"><button className="link-btn" onClick={() => navigate('/customer')}>← My Applications</button></nav>
+      <h1>New Application</h1>
       <p className="subtitle">Select an insurance product to begin the adaptive questionnaire.</p>
 
       {error && <div className="error-box">{error}</div>}

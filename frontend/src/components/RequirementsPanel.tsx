@@ -15,7 +15,7 @@ export default function RequirementsPanel({ requirements, loading }: Props) {
 
   return (
     <div className="panel requirements-panel">
-      <h2>Required Documents / Actions</h2>
+      <h2>Document requirements</h2>
 
       {requirements.length === 0 && (
         <p className="empty">Answer questions above to see applicable requirements.</p>
@@ -23,7 +23,7 @@ export default function RequirementsPanel({ requirements, loading }: Props) {
 
       {unconditional.length > 0 && (
         <section>
-          <h3>Always Required</h3>
+          <h3>Required documents</h3>
           <ul>
             {unconditional.map((r) => (
               <li key={r.requirement_id} className="req-item req-unconditional">
@@ -54,6 +54,11 @@ export default function RequirementsPanel({ requirements, loading }: Props) {
           </ul>
         </section>
       )}
+
+      <section>
+        <h3>Optional documents</h3>
+        <p className="empty">No optional documents have been identified for this application.</p>
+      </section>
     </div>
   );
 }

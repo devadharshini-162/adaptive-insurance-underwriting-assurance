@@ -27,13 +27,15 @@ def seed():
         db.flush()  # get product.id
 
         # --- Questions ---
-        q_entity_type = Question(product_id=product.id, text="Type of business entity", field_type="text", is_required=True)
-        q_revenue     = Question(product_id=product.id, text="Estimated annual revenue (INR)", field_type="number", is_required=True)
-        q_hazmat      = Question(product_id=product.id, text="Are hazardous materials present on the premises?", field_type="yesno", is_required=True)
-        q_prop_value  = Question(product_id=product.id, text="Estimated property value (INR)", field_type="number", is_required=True)
-        q_risk_class  = Question(product_id=product.id, text="Risk classification (low/medium/high)", field_type="text", is_required=True)
-        db.add_all([q_entity_type, q_revenue, q_hazmat, q_prop_value, q_risk_class])
+        q_entity_type = Question(product_id=product.id, text="Type of business entity", field_type="text", is_required=True, section="risk")
+        q_hazmat = Question(product_id=product.id, text="Are hazardous materials present on the premises?", field_type="yesno", is_required=True, section="risk")
+        q_manufacturing = Question(product_id=product.id, text="Is manufacturing carried out at this property?", field_type="yesno", is_required=True, section="risk")
+        q_fire_protection = Question(product_id=product.id, text="What fire protection is in place?", field_type="select", is_required=True, section="risk", options=["Sprinkler system", "Fire extinguishers", "Alarm system", "None"])
+        q_claims = Question(product_id=product.id, text="Have there been property claims in the past five years?", field_type="yesno", is_required=True, section="risk")
+        q_risk_class = Question(product_id=product.id, text="Risk classification", field_type="select", is_required=True, section="risk", options=["low", "medium", "high"])
+        db.add_all([q_entity_type, q_hazmat, q_manufacturing, q_fire_protection, q_claims, q_risk_class])
         db.flush()
+        q_fire_protection.condition_logic = {"question_id": q_manufacturing.id, "operator": "==", "value": "yes"}
 
         # --- Requirements ---
 
@@ -53,7 +55,7 @@ def seed():
             rule_logic={
                 "operator": "AND",
                 "conditions": [
-                    {"question_id": q_revenue.id, "operator": ">", "value": 10000000}
+                    {"field": "annual_revenue", "operator": ">", "value": 10000000}
                 ],
                 "explanation": "Financial statement required because annual revenue exceeds the configured threshold of ₹1 crore."
             }
@@ -81,7 +83,7 @@ def seed():
             rule_logic={
                 "operator": "OR",
                 "conditions": [
-                    {"question_id": q_prop_value.id, "operator": ">", "value": 50000000},
+                    {"field": "property_value", "operator": ">", "value": 50000000},
                     {"question_id": q_risk_class.id,  "operator": "==", "value": "high"}
                 ],
                 "explanation": "Property valuation report required because the property value exceeds ₹5 crore or the risk is classified as high."
@@ -90,7 +92,7 @@ def seed():
 
         db.add_all([req_application, req_financial, req_hazmat, req_valuation])
         db.commit()
-        print(f"Seeded: product={product.id}, questions={[q_entity_type.id, q_revenue.id, q_hazmat.id, q_prop_value.id, q_risk_class.id]}")
+        print(f"Seeded: product={product.id}")
 
     finally:
         db.close()

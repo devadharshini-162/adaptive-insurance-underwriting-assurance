@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import type { Submission } from '../services/api';
+import type { SubmissionListItem } from '../services/api';
 
 const UnderwriterDashboard: React.FC = () => {
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -35,8 +35,8 @@ const UnderwriterDashboard: React.FC = () => {
 
   return (
     <div className="page dashboard-page">
-      <h1>Underwriter Dashboard</h1>
-      <p className="subtitle">Overview of all active applications</p>
+      <h1>Submission Queue</h1>
+      <p className="subtitle">Applications available for underwriting review.</p>
       
       {error && <div className="error-box">{error}</div>}
       
@@ -50,18 +50,18 @@ const UnderwriterDashboard: React.FC = () => {
             <table className="table interactive-table">
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th>Applicant</th>
                   <th>Product</th>
-                  <th>Date</th>
+                  <th>Created</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {submissions.map((sub) => (
-                  <tr key={sub.id} onClick={() => navigate(`/dashboard/${sub.id}`)}>
-                    <td>#{sub.id}</td>
-                    <td>{sub.product_id}</td> {/* Would map to product name in real app */}
+                    <tr key={sub.id} onClick={() => navigate(`/underwriter/${sub.id}`)}>
+                    <td>{sub.applicant_name}</td>
+                    <td>{sub.product_name}</td>
                     <td>{new Date(sub.created_at).toLocaleDateString()}</td>
                     <td>{getStatusBadge(sub.status)}</td>
                     <td>

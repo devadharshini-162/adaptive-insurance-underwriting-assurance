@@ -1,244 +1,31 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../services/api';
 
-const SubmissionDetail: React.FC = () => {
-  const { submissionId } = useParams();
-  const navigate = useNavigate();
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [statusNote, setStatusNote] = useState('');
+const labels: Record<string, string> = { company_name: 'Company name', business_type: 'Business type', industry: 'Industry', years_in_operation: 'Years in operation', business_address: 'Business address', city: 'City', state: 'State', country: 'Country', annual_revenue: 'Annual revenue', property_address: 'Property address', property_type: 'Property type', property_value: 'Approximate property value', ownership_type: 'Property ownership', property_operations: 'Property operations', employee_count: 'Number of employees', hazardous_materials: 'Hazardous materials', risk_level: 'Risk level', insured_name: 'Insured name' };
+const label = (key: string) => labels[key] || 'Evidence item';
+const status = (value: string) => ({ draft: 'Draft', under_review: 'Under review', info_requested: 'Information requested', approved: 'Approved', declined: 'Declined' }[value] || value.replaceAll('_', ' '));
 
-  useEffect(() => {
-    fetchData();
-  }, [submissionId]);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const res = await api.getDashboardSummary(Number(submissionId));
-      setData(res);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleIssueAction = async (issueId: number, action: string) => {
-    try {
-      await api.updateIssueStatus(Number(submissionId), issueId, action);
-      await fetchData(); // Refresh data
-    } catch (err: any) {
-      alert(`Failed to update issue: ${err.message}`);
-    }
-  };
-
-  const handleStatusUpdate = async (status: string) => {
-    try {
-      await api.updateSubmissionStatus(Number(submissionId), status, statusNote);
-      await fetchData();
-      setStatusNote('');
-    } catch (err: any) {
-      alert(`Failed to update status: ${err.message}`);
-    }
-  };
-
-  if (loading) return <div className="page"><p>Loading submission details...</p></div>;
+export default function SubmissionDetail() {
+  const { submissionId } = useParams(); const navigate = useNavigate();
+  const [data, setData] = useState<any>(); const [error, setError] = useState(''); const [note, setNote] = useState('');
+  const [requestType, setRequestType] = useState<'information' | 'document'>('information'); const [requestName, setRequestName] = useState(''); const [requestMessage, setRequestMessage] = useState('');
+  const refresh = useCallback(() => api.getDashboardSummary(Number(submissionId)).then(setData).catch((e) => setError(e.message)), [submissionId]);
+  useEffect(() => { refresh(); }, [refresh]);
   if (error) return <div className="page"><div className="error-box">{error}</div></div>;
-  if (!data) return null;
-
-  const { submission, documents, issues, requirements, audit_trail, severity_counts } = data;
-
-  return (
-    <div className="page detail-page">
-      <button className="link-btn breadcrumb" onClick={() => navigate('/dashboard')}>
-        &larr; Back to Dashboard
-      </button>
-
-      {/* 1. Submission Overview */}
-      <div className="dashboard-header panel">
-        <div className="header-top">
-          <div>
-            <h1>Submission #{submission.id}: {submission.product_name}</h1>
-            <p className="subtitle">Applicant: {submission.applicant} | Submitted: {new Date(submission.created_at).toLocaleString()}</p>
-          </div>
-          <div className={`status-badge status-${submission.status}`}>
-            {submission.status.replace('_', ' ').toUpperCase()}
-          </div>
-        </div>
-        
-        <div className="overview-stats">
-          <div className="stat-box">
-            <span className="stat-label">Requirements</span>
-            <span className="stat-value">{requirements.filter((r: any) => r.fulfilled).length} / {requirements.length}</span>
-          </div>
-          <div className="stat-box">
-            <span className="stat-label">Documents</span>
-            <span className="stat-value">{documents.length} Uploaded</span>
-          </div>
-          <div className="stat-box issues-stat">
-            <span className="stat-label">Critical Issues</span>
-            <span className={`stat-value ${severity_counts.HIGH > 0 ? 'text-danger' : 'text-success'}`}>
-              {severity_counts.HIGH} High
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="dashboard-grid">
-        <div className="main-col">
-          {/* 2. Underwriting Issues */}
-          <section className="panel mb-4">
-            <h2>Underwriting Issues</h2>
-            {issues.length === 0 ? (
-              <p className="empty">No issues found. Consistency looks good!</p>
-            ) : (
-              <div className="issues-list">
-                {issues.map((i: any) => (
-                  <div key={i.id} className={`issue-card severity-${i.details?.severity?.toLowerCase()}`}>
-                    <div className="issue-header">
-                      <span className={`badge badge-${i.details?.severity?.toLowerCase()}`}>
-                        {i.details?.severity}
-                      </span>
-                      <strong>{i.description}</strong>
-                      <span className="badge badge-secondary">{i.status}</span>
-                    </div>
-                    <div className="issue-body">
-                      <p className="reason">{i.details?.reason}</p>
-                      {i.details?.comparison_result === 'CONFLICT' && (
-                        <div className="conflict-details">
-                          <table className="table">
-                            <thead>
-                              <tr>
-                                <th>Source</th>
-                                <th>Raw Value</th>
-                                <th>Normalized</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {i.details.sources?.map((src: string, idx: number) => (
-                                <tr key={idx}>
-                                  <td>{src}</td>
-                                  <td>{i.details.raw_values[idx]}</td>
-                                  <td>{i.details.normalized_values[idx]}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                      
-                      <p className="action-rec"><strong>Recommendation:</strong> {i.details?.recommended_action}</p>
-                      
-                    </div>
-                    {i.status === 'open' && (
-                      <div className="issue-actions">
-                        <button className="btn-sm btn-success" onClick={() => handleIssueAction(i.id, 'resolve')}>Resolve</button>
-                        <button className="btn-sm btn-outline" onClick={() => handleIssueAction(i.id, 'dismiss')}>Dismiss</button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* 5. Document Section */}
-          <section className="panel">
-            <h2>Documents & Extracted Evidence</h2>
-            {documents.length === 0 ? (
-              <p className="empty">No documents uploaded.</p>
-            ) : (
-              documents.map((d: any) => (
-                <div key={d.id} className="document-card">
-                  <div className="document-card-header">
-                    <strong>{d.file_path}</strong>
-                    <span className="badge badge-success">{d.status}</span>
-                  </div>
-                  {d.extracted_fields && d.extracted_fields.length > 0 ? (
-                    <div className="extracted-fields">
-                      <table className="table">
-                        <thead>
-                          <tr>
-                            <th>Key</th>
-                            <th>Raw Value</th>
-                            <th>Normalized</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {d.extracted_fields.map((f: any) => (
-                            <tr key={f.id}>
-                              <td>{f.key}</td>
-                              <td>{f.raw_value}</td>
-                              <td>{f.normalized_value || '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="empty">No fields extracted.</p>
-                  )}
-                </div>
-              ))
-            )}
-          </section>
-        </div>
-
-        <div className="side-col">
-          {/* 6. Underwriter Actions */}
-          <section className="panel mb-4">
-            <h2>Underwriter Decision</h2>
-            <div className="action-form">
-              <textarea 
-                placeholder="Add note for audit trail..."
-                value={statusNote}
-                onChange={e => setStatusNote(e.target.value)}
-                className="note-input"
-              />
-              <div className="decision-buttons">
-                <button className="btn-primary w-100 mb-2" onClick={() => handleStatusUpdate('approved')}>Approve Submission</button>
-                <button className="btn-secondary w-100 mb-2" onClick={() => handleStatusUpdate('info_requested')}>Request Info</button>
-                <button className="btn-danger w-100" onClick={() => handleStatusUpdate('declined')}>Decline</button>
-              </div>
-            </div>
-          </section>
-
-          {/* 4. Requirements Checklist */}
-          <section className="panel mb-4">
-            <h2>Requirements Checklist</h2>
-            <ul className="req-list">
-              {requirements.map((r: any) => (
-                <li key={r.requirement_id} className={`req-item ${r.fulfilled ? 'req-fulfilled' : 'req-missing'}`}>
-                  <div className="req-icon">{r.fulfilled ? '✅' : '❌'}</div>
-                  <div>
-                    <strong>{r.name}</strong>
-                    <p>{r.explanation}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {/* Audit Trail */}
-          <section className="panel audit-panel">
-            <h2>Audit Log</h2>
-            <div className="audit-timeline">
-              {audit_trail.map((a: any) => (
-                <div key={a.id} className="audit-event">
-                  <div className="audit-time">{new Date(a.timestamp).toLocaleString()}</div>
-                  <div className="audit-action">{a.action}</div>
-                  {a.context_data?.note && <div className="audit-note">"{a.context_data.note}"</div>}
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default SubmissionDetail;
+  if (!data) return <div className="page"><p>Loading submission review…</p></div>;
+  const { submission, application_profile: profile, answers, documents, consistency_checks: checks, issues, requirements, audit_trail: history } = data;
+  const doIssue = async (id: number, action: string) => { await api.updateIssueStatus(Number(submissionId), id, action, note); setNote(''); refresh(); };
+  const doStatus = async (next: string) => { await api.updateSubmissionStatus(Number(submissionId), next, note); setNote(''); refresh(); };
+  const requestMore = async () => { await api.createAdditionalRequest(Number(submissionId), { type: requestType, document_name: requestName || undefined, message: requestMessage, note: note || undefined }); setRequestMessage(''); setRequestName(''); setNote(''); refresh(); };
+  return <div className="page detail-page"><button className="link-btn" onClick={() => navigate('/underwriter')}>← Underwriter queue</button>
+    <section className="panel"><h1>{submission.product_name} application</h1><p>{submission.applicant} · Submitted {new Date(submission.created_at).toLocaleString()}</p><span className="badge">{status(submission.status)}</span></section>
+    <div className="dashboard-grid"><div className="main-col">
+      <section className="panel"><h2>Applicant, business and property</h2><Details data={profile} /><h3>Risk information</h3>{answers.length ? <dl className="review-details">{answers.map((a: any, i: number) => <Pair key={i} name={a.label} value={a.value} />)}</dl> : <p className="empty">No risk responses recorded.</p>}</section>
+      <section className="panel"><h2>Documents and evidence</h2>{documents.filter((d: any) => !d.replaced).map((doc: any) => <div className="document-card" key={doc.id}><div className="document-card-header"><strong>{doc.name}</strong><span className="badge">{doc.status === 'processed' ? 'Processed' : doc.status}</span></div><button className="link-btn" onClick={() => api.viewDocument(doc.id)}>Open document</button>{doc.extracted_fields.length ? <dl className="review-details">{doc.extracted_fields.map((f: any, i: number) => <Pair key={i} name={f.label || label(f.key)} value={f.value || f.normalized_value || f.raw_value} />)}</dl> : <p className="empty">No information extracted.</p>}</div>) || <p className="empty">No documents uploaded.</p>}</section>
+      <section className="panel"><h2>Evidence consistency</h2>{checks.length ? checks.map((check: any, i: number) => <div className="issue-card" key={i}><strong>{label(check.details?.canonical_key || '')} {check.status === 'CONFLICT' ? 'mismatch' : check.status === 'INSUFFICIENT_EVIDENCE' ? 'needs more evidence' : 'check'}</strong><p>{check.details?.reason || (check.details?.reasons || []).join(' ') || 'Evidence was evaluated.'}</p>{check.status === 'CONFLICT' && <p><strong>Suggested action:</strong> Request clarification.</p>}</div>) : <p className="empty">No consistency checks have been recorded yet.</p>}</section>
+      <section className="panel"><h2>Underwriting issues</h2>{issues.length ? issues.map((issue: any) => <div className="issue-card" key={issue.id}><strong>{issue.description}</strong><p>{issue.details?.reason || issue.details?.recommended_action || 'Review the available evidence.'}</p><p>Status: {issue.status}</p>{issue.status === 'open' && <><button className="btn-sm btn-success" onClick={() => doIssue(issue.id, 'resolve')}>Accept suggestion</button><button className="btn-sm btn-outline" onClick={() => doIssue(issue.id, 'dismiss')}>Dismiss</button></>}</div>) : <p className="empty">No underwriting issues identified.</p>}</section>
+    </div><aside className="side-col"><section className="panel"><h2>Review action</h2><textarea placeholder="Optional review note" value={note} onChange={(e) => setNote(e.target.value)} />{submission.status === 'under_review' && <div className="decision-buttons"><button className="btn-primary" onClick={() => doStatus('approved')}>Approve</button><button className="btn-danger" onClick={() => doStatus('declined')}>Decline</button></div>}</section><section className="panel"><h2>Request more information</h2>{submission.status === 'under_review' ? <><select value={requestType} onChange={(e) => setRequestType(e.target.value as 'information' | 'document')}><option value="information">Information</option><option value="document">Document</option></select>{requestType === 'document' && <input placeholder="Document name" value={requestName} onChange={(e) => setRequestName(e.target.value)} />}<textarea placeholder="Explain what is needed" value={requestMessage} onChange={(e) => setRequestMessage(e.target.value)} /><button className="btn-secondary" disabled={!requestMessage || (requestType === 'document' && !requestName)} onClick={requestMore}>Send request</button></> : <p className="empty">Requests can be created while the application is under review.</p>}</section><section className="panel"><h2>Requests and responses</h2>{(data.additional_requests || []).map((request: any) => <div className="audit-event" key={request.id}><strong>{request.type === 'document' ? request.document_name : 'Information request'}</strong><p>{request.message}</p><small>{request.status === 'satisfied' ? 'Customer responded' : 'Awaiting customer response'}</small></div>)}</section><section className="panel"><h2>Requirements</h2>{requirements.map((r: any) => <p key={r.requirement_id}>{r.fulfilled ? '✓' : '•'} {r.name}: {r.explanation}</p>)}</section><section className="panel"><h2>Submission history</h2>{history.map((event: any) => <div className="audit-event" key={event.id}><div className="audit-time">{event.timestamp && new Date(event.timestamp).toLocaleString()}</div><div>{event.action.replaceAll('_', ' ')}</div>{event.context_data?.actor_role && <small>{event.context_data.actor_role}</small>}{event.context_data?.note && <p>“{event.context_data.note}”</p>}</div>)}</section></aside></div></div>;
+}
+function Pair({ name, value }: { name: string; value: unknown }) { return <><dt>{name}</dt><dd>{String(value)}</dd></>; }
+function Details({ data }: { data: Record<string, unknown> }) { const rows = Object.entries(data || {}).filter(([, value]) => value !== null && value !== ''); return rows.length ? <dl className="review-details">{rows.map(([key, value]) => <Pair key={key} name={label(key)} value={value} />)}</dl> : <p className="empty">No application details have been provided.</p>; }

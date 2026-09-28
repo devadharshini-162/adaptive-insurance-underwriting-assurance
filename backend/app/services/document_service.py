@@ -247,6 +247,7 @@ def ingest_document(
         submission_id=submission_id,
         requirement_id=requirement_id,
         file_path=str(saved_path),
+        original_filename=Path(filename).name,
         status="processing",
     )
     db.add(doc)

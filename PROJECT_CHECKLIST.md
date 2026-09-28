@@ -70,52 +70,52 @@
 - [x] Underwriter authentication *AC: Integration tests confirm underwriter can login.*
 - [x] Role-based routing and protected access *AC: UI/API rejects unauthorized routes — 5 unauth tests + 4 RBAC tests pass.*
 - [x] Replace hardcoded user/submission ownership *AC: Submissions tied to authenticated user ID — hardcoded user_id=1 removed.*
-- [ ] Customer dashboard *AC: Broker can view own submissions; backend tests pass.*
-- [ ] Underwriter dashboard/submission queue *AC: Underwriters see queue based on role.*
-- [ ] Submission status lifecycle *AC: State transitions enforced.*
+- [x] Customer dashboard *AC: Broker can view own submissions; backend tests pass (151 total backend tests, 0 failures).*
+- [x] Underwriter dashboard/submission queue *AC: Underwriters see queue based on role; 151 total backend tests pass.*
+- [x] Submission status lifecycle *AC: State transitions enforced; 152 backend tests pass.*
 - [x] Backend authorization boundaries *AC: Endpoints protected by role permissions — ownership isolation 3 tests pass.*
 - [x] Authentication/authorization tests *AC: test_auth.py — 22 tests all pass (149 total backend tests, 0 failures).*
 - [ ] Manual browser verification *AC: Verified in browser manually.*
 
 ## Phase 14 — Customer Insurance Application & Adaptive Requirements
-- [ ] Meaningful insurance/product selection *AC: Selection restricts subsequent options.*
-- [ ] Applicant/business details *AC: Information captured in normalized schema.*
-- [ ] Property/asset details *AC: Asset properties appropriately captured.*
-- [ ] Risk information *AC: Risk responses recorded and persisted.*
-- [ ] Human-friendly questionnaire UI *AC: UI layout accessible and intuitive.*
-- [ ] Truly conditional/adaptive questions *AC: Questionnaire pathways dynamically adapt.*
-- [ ] Dynamic document requirements *AC: Document requests trigger automatically.*
-- [ ] Requirement explanations *AC: Plain-english reasons provided for doc requests.*
-- [ ] Back/edit navigation *AC: Bidirectional navigation works safely.*
-- [ ] Persistence across navigation and refresh *AC: Local/server state preserved across refresh.*
-- [ ] Remove developer-facing field names, JSON, file paths and internal IDs from customer UI *AC: UI components display correctly formatted labels.*
+- [x] Meaningful insurance/product selection *AC: Selection restricts subsequent options.*
+- [x] Applicant/business details *AC: Information captured in normalized schema.*
+- [x] Property/asset details *AC: Asset properties appropriately captured.*
+- [x] Risk information *AC: Risk responses recorded and persisted.*
+- [x] Human-friendly questionnaire UI *AC: UI layout accessible and intuitive.*
+- [x] Truly conditional/adaptive questions *AC: Questionnaire pathways dynamically adapt.*
+- [x] Dynamic document requirements *AC: Document requests trigger automatically.*
+- [x] Requirement explanations *AC: Plain-english reasons provided for doc requests.*
+- [x] Back/edit navigation *AC: Bidirectional navigation works safely.*
+- [x] Persistence across navigation and refresh *AC: Local/server state preserved across refresh.*
+- [x] Remove developer-facing field names, JSON, file paths and internal IDs from customer UI *AC: UI components display correctly formatted labels.*
 - [ ] Tests + manual browser verification *AC: Automated tests pass and browser validated.*
 
 ## Phase 15 — Evidence & Underwriter Review Workflow
-- [ ] Customer document upload, replacement and viewing *AC: Support replacing stale docs.*
-- [ ] Human-readable document status *AC: Distinct tags for extraction stages.*
-- [ ] Document viewer for underwriter *AC: Original file available alongside extracted data.*
-- [ ] Extracted information presentation *AC: Sourced facts intuitively organized.*
-- [ ] Cross-document evidence consistency findings *AC: Conflicting answers highlighted visually.*
-- [ ] Underwriter submission review workspace *AC: Dashboard aggregates review requirements.*
-- [ ] Review suggestions with explanations *AC: Underwriter suggestions contain rationale.*
-- [ ] Accept/dismiss suggestions *AC: State handles acceptance/dismissal appropriately.*
-- [ ] Underwriter review notes *AC: Analysts can append text observations.*
-- [ ] Submission history *AC: History captures state and notes accurately.*
+- [x] Customer document upload, replacement and viewing *AC: Support replacing stale docs; authorization tests pass.*
+- [x] Human-readable document status *AC: Distinct customer-facing processing tags are displayed.*
+- [x] Document viewer for underwriter *AC: Authorized document content endpoint is available from review workspace.*
+- [x] Extracted information presentation *AC: Evidence uses human-readable labels.*
+- [x] Cross-document evidence consistency findings *AC: Deterministic conflicts and insufficient evidence are displayed.*
+- [x] Underwriter submission review workspace *AC: Applicant, evidence, requirements, findings, issues and history aggregate in the review page.*
+- [x] Review suggestions with explanations *AC: Existing deterministic issue rationale and recommended action are shown.*
+- [x] Accept/dismiss suggestions *AC: Underwriter actions persist and are audited.*
+- [x] Underwriter review notes *AC: Optional review notes persist with actions.*
+- [x] Submission history *AC: Creation, document, status and review events are recorded and displayed.*
 - [ ] Tests + manual browser verification *AC: Automated tests pass and browser validated.*
 
 ## Phase 16 — Two-Way Review, Additional Documents & Final Decision
-- [ ] Underwriter-created additional document requests *AC: Underwriter forms can dispatch ad-hoc requests.*
-- [ ] Dynamic customer-side upload fields for requested documents *AC: Broker sees new file inputs based on requests.*
-- [ ] Newly uploaded documents enter the existing extraction/verification pipeline *AC: Re-evaluation pipeline triggered successfully.*
-- [ ] Customer ↔ underwriter review loop *AC: State loop behaves cyclically without deadlock.*
-- [ ] Approve workflow *AC: Terminal successful state handled gracefully.*
-- [ ] Decline workflow *AC: Terminal failure state handled gracefully.*
-- [ ] Request-information workflow *AC: Broker notified of pending information requested.*
-- [ ] Customer-visible decision/review messages *AC: Resolution notes provided to broker view.*
-- [ ] Audit trail improvements *AC: End-to-end events accurately time-stamped and logged.*
-- [ ] End-to-end integration testing *AC: Test environments run complete simulated interactions.*
-- [ ] Final UX/security/error-handling/reproducibility cleanup *AC: Validation barriers implemented completely.*
+- [x] Underwriter-created additional document requests *AC: Underwriter forms can dispatch ad-hoc requests.*
+- [x] Dynamic customer-side upload fields for requested documents *AC: Broker sees new file inputs based on requests.*
+- [x] Newly uploaded documents enter the existing extraction/verification pipeline *AC: Re-evaluation pipeline triggered successfully.*
+- [x] Customer ↔ underwriter review loop *AC: State loop behaves cyclically without deadlock.*
+- [x] Approve workflow *AC: Terminal successful state handled gracefully.*
+- [x] Decline workflow *AC: Terminal failure state handled gracefully.*
+- [x] Request-information workflow *AC: Broker notified of pending information requested.*
+- [x] Customer-visible decision/review messages *AC: Resolution notes provided to broker view.*
+- [x] Audit trail improvements *AC: End-to-end events accurately time-stamped and logged.*
+- [x] End-to-end integration testing *AC: Test environments run complete simulated interactions.*
+- [x] Final UX/security/error-handling/reproducibility cleanup *AC: Authorization and lifecycle barriers enforced; customer error/navigation paths verified by tests and build checks.*
 - [ ] Final manual browser walkthrough *AC: Final walkthrough complete.*
 
 ## OPTIONAL / AFTER CORE

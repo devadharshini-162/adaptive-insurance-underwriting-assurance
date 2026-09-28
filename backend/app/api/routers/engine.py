@@ -14,5 +14,5 @@ def evaluate_submission_state(req: EvaluateRequest, db: Session = Depends(get_db
     Evaluates current answers for an insurance product and returns the required
     questions and dynamic document requirements along with explanations.
     """
-    result = evaluate_requirements(db, req.product_id, req.current_answers)
+    result = evaluate_requirements(db, req.product_id, req.current_answers, req.context_data)
     return result

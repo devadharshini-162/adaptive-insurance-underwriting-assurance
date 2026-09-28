@@ -23,20 +23,9 @@ export default function Questionnaire() {
 
     let pre_answers: Record<string, string> = {};
 
-    Promise.all([
-      api.getQuestions(pId),
-      api.getDashboardSummary(Number(submissionId)).catch(() => null)
-    ])
-    .then(([qs, summary]) => {
+    api.getQuestions(pId)
+    .then((qs) => {
       setQuestions(qs);
-      
-      if (summary && summary.answers) {
-        pre_answers = {};
-        summary.answers.forEach((ans: any) => {
-          pre_answers[String(ans.question_id)] = ans.value;
-        });
-        setAnswers(pre_answers);
-      }
       return api.evaluate(pId, pre_answers);
     })
     .then((res) => setRequirements(res.requirements))
@@ -128,8 +117,8 @@ export default function Questionnaire() {
       {/* Left: questions */}
       <div className="col-questions">
         <nav className="breadcrumb">
-          <button className="link-btn" onClick={() => navigate('/')}>← Back</button>
-          <span> / Questionnaire #{submissionId}</span>
+          <button className="link-btn" onClick={() => navigate('/customer')}>← Back</button>
+          <span> / Questionnaire</span>
         </nav>
         <h1>Adaptive Questionnaire</h1>
         <p className="subtitle">Answer all fields. Requirements update in real-time.</p>

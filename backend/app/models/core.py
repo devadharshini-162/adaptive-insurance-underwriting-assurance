@@ -40,6 +40,9 @@ class Question(Base):
     text = Column(String)
     field_type = Column(String)
     is_required = Column(Boolean, default=True)
+    section = Column(String, default="questions")
+    condition_logic = Column(JSON, nullable=True)
+    options = Column(JSON, nullable=True)
     
     product = relationship("InsuranceProduct", back_populates="questions")
     answers = relationship("Answer", back_populates="question")
@@ -60,6 +63,30 @@ class Submission(Base):
     consistency_checks = relationship("ConsistencyCheck", back_populates="submission")
     issues = relationship("UnderwritingIssue", back_populates="submission")
     audits = relationship("AuditRecord", back_populates="submission")
+    additional_requests = relationship("AdditionalRequest", back_populates="submission")
+    application_profile = relationship("ApplicationProfile", back_populates="submission", uselist=False, cascade="all, delete-orphan")
+
+class ApplicationProfile(Base):
+    __tablename__ = "application_profiles"
+    id = Column(Integer, primary_key=True, index=True)
+    submission_id = Column(Integer, ForeignKey("submissions.id"), unique=True, nullable=False)
+    company_name = Column(String, nullable=True)
+    business_type = Column(String, nullable=True)
+    industry = Column(String, nullable=True)
+    years_in_operation = Column(Integer, nullable=True)
+    business_address = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    state = Column(String, nullable=True)
+    country = Column(String, nullable=True)
+    annual_revenue = Column(String, nullable=True)
+    property_address = Column(String, nullable=True)
+    property_type = Column(String, nullable=True)
+    property_value = Column(String, nullable=True)
+    ownership_type = Column(String, nullable=True)
+    property_operations = Column(Text, nullable=True)
+    employee_count = Column(Integer, nullable=True)
+
+    submission = relationship("Submission", back_populates="application_profile")
 
 class Answer(Base):
     __tablename__ = "answers"
@@ -77,7 +104,9 @@ class Document(Base):
     submission_id = Column(Integer, ForeignKey("submissions.id"))
     requirement_id = Column(Integer, ForeignKey("requirements.id"), nullable=True)
     file_path = Column(String)
+    original_filename = Column(String, nullable=True)
     status = Column(String, default="uploaded")
+    replaced_by_document_id = Column(Integer, ForeignKey("documents.id"), nullable=True)
     
     submission = relationship("Submission", back_populates="documents")
     requirement = relationship("Requirement", back_populates="documents")
@@ -136,3 +165,16 @@ class AuditRecord(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     
     submission = relationship("Submission", back_populates="audits")
+
+class AdditionalRequest(Base):
+    __tablename__ = "additional_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    submission_id = Column(Integer, ForeignKey("submissions.id"), nullable=False)
+    request_type = Column(String, nullable=False)  # information or document
+    document_name = Column(String, nullable=True)
+    message = Column(Text, nullable=False)
+    note = Column(Text, nullable=True)
+    status = Column(String, default="open")  # open or satisfied
+    response_document_id = Column(Integer, ForeignKey("documents.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    submission = relationship("Submission", back_populates="additional_requests")
